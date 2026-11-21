@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Milestone 1 Report - Vector Space Information Retrieval Engine</title>
+<style>
+  @page { size: A4; margin: 20mm; }
+  body { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 1.45; color: #000; max-width: 800px; margin: 0 auto; padding: 20px; }
+  h1 { font-size: 20pt; text-align: center; margin-bottom: 4px; }
+  h2 { font-size: 15pt; border-bottom: 1px solid #444; padding-bottom: 3px; margin-top: 28px; page-break-after: avoid; }
+  h3 { font-size: 12.5pt; margin-bottom: 4px; page-break-after: avoid; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 11pt; page-break-inside: avoid; }
+  th, td { border: 1px solid #444; padding: 5px 7px; text-align: left; vertical-align: top; }
+  th { background: #e8e8e8; }
+  code, pre { font-family: "Courier New", monospace; font-size: 10.5pt; }
+  pre { background: #f4f4f4; border: 1px solid #bbb; padding: 8px; white-space: pre-wrap; page-break-inside: avoid; }
+  .center { text-align: center; }
+  .formula { text-align: center; font-size: 13pt; margin: 12px 0; }
+  .fill { background: #fff3a3; }
+  .note { border-left: 4px solid #888; padding: 4px 10px; background: #f7f7f7; page-break-inside: avoid; }
+  svg { display: block; margin: 12px auto; max-width: 100%; page-break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<p class="center">Madhav Institute of Technology &amp; Science, Gwalior<br>
+B.Tech &ndash; Mathematics and Computing</p>
+
+<h1>Milestone 1 Report</h1>
+<p class="center"><b>Requirement Analysis &amp; Architectural Design</b></p>
+<p class="center"><b>Project: Design and Implementation of a Vector Space Information Retrieval Engine from First Principles</b></p>
+
+<table>
+  <tr><th style="width:30%">Team members</th><td>Tanay Shrivastava (<span>BTMC26O1138</span>)<br>Tanay Jaiswal (<span>BTMC26O1137</span>)</td></tr>
+  <tr><th>Project guide</th><td><span>Monika Vyas</span></td></tr>
+  <tr><th>Submission date</th><td><span>06/10/2026</span></td></tr>
+</table>
+
+<h2>1. Introduction and Objective</h2>
+<p>This project builds a small <b>search engine</b> for text. The user types a query, and the system returns the documents that match it best, ranked from most to least relevant.</p>
+<p>Each document is converted into a list of numbers (a <b>vector</b>). The query is converted in the same way. The system then measures the <b>angle</b> between the query vector and each document vector using <b>cosine similarity</b>. A smaller angle means the document is more relevant.</p>
+<p>The whole system is written <b>from scratch using only Python's standard library</b>. External retrieval or machine-learning frameworks (for example Scikit-learn, NLTK or NumPy) are not allowed. This keeps the focus on data structures, algorithm complexity and program correctness (invariants), and applies discrete mathematics and linear algebra directly to software.</p>
+<p>This report covers Milestone 1: the requirements, the mathematical specification, the architecture, the choice of representation model, the data schema, and the program invariants. No implementation code is part of this milestone.</p>
+
+<h2>2. Stakeholder Requirements Gathering</h2>
+<p>Requirements were collected from the people who will use or evaluate the system.</p>
+<table>
+  <tr><th style="width:22%">Stakeholder</th><th>What they need from the system</th></tr>
+  <tr><td>Project guide / examiners</td><td>The mathematics must be implemented from first principles. The design must be clear, well documented and defensible in the viva. No external ML or retrieval libraries.</td></tr>
+  <tr><td>End user (a student searching a document set)</td><td>Type a query in a terminal and get a ranked list of the most relevant documents quickly. Bad or empty input must not crash the program.</td></tr>
+  <tr><td>Developers (the team)</td><td>Small, independent modules that can be tested separately. Behaviour must be deterministic, so the same input always gives the same output.</td></tr>
+<table>
+
+<h2>3. Requirements</h2>
+<h3>3.1 Functional requirements</h3>
+<table>
+  <tr><th style="width:9%">ID</th><th>Requirement</th></tr>
+  <tr><td>FR1</td><td>The system shall accept a collection of text documents as input.</td></tr>
+  <tr><td>FR2</td><td>The system shall normalize text: convert to lowercase (case-folding), remove punctuation, collapse extra whitespace, and split into tokens.</td></tr>
+  <tr><td>FR3</td><td>The system shall build a vocabulary V: the set of all unique tokens in the corpus, each with a fixed index number.</td></tr>
+  <tr><td>FR4</td><td>The system shall convert each document into a normalized term-frequency (TF) vector of length |V|.</td></tr>
+  <tr><td>FR5</td><td>The system shall compute the dot product, Euclidean norm and cosine similarity without any external library.</td></tr>
+  <tr><td>FR6</td><td>The system shall convert a free-text query into a vector in the same space as the documents.</td></tr>
+  <tr><td>FR7</td><td>The system shall score every document against the query and return the top-k documents ranked by score.</td></tr>
+  <tr><td>FR8</td><td>The system shall handle edge cases (empty query, zero-length vector, words not in the vocabulary, non-string input) without crashing.</td></tr>
+  <tr><td>FR9</td><td>The system shall provide a command-line interface for ad-hoc search queries (Milestone 3).</td></tr>
+</table>
+
+<h3>3.2 Non-functional requirements</h3>
+<table>
+  <tr><th style="width:9%">ID</th><th>Requirement</th></tr>
+  <tr><td>NFR1</td><td><b>Determinism:</b> the same corpus and query always produce the same ranking, including the tie-breaking order.</td></tr>
+  <tr><td>NFR2</td><td><b>Standard library only:</b> no third-party packages.</td></tr>
+  <tr><td>NFR3</td><td><b>Correctness:</b> every score lies in the range [0, 1], with no division-by-zero errors.</td></tr>
+  <tr><td>NFR4</td><td><b>Testability:</b> every module can be unit-tested on its own.</td></tr>
+  <tr><td>NFR5</td><td><b>Performance:</b> search latency and memory use will be measured and reported (Milestones 3 and 4).</td></tr>
+</table>
+
+<h2>4. Mathematical Specification</h2>
+<h3>4.1 Definitions</h3>
+<ul>
+  <li><b>Corpus:</b> C = {d<sub>1</sub>, d<sub>2</sub>, &hellip;, d<sub>N</sub>}, a set of N documents.</li>
+  <li><b>Tokenizer:</b> a function T that maps a string to a list of tokens (lowercase words with no punctuation).</li>
+  <li><b>Vocabulary:</b> V = {t<sub>0</sub>, t<sub>1</sub>, &hellip;, t<sub>D&minus;1</sub>}, the set of all unique tokens that appear in C. It is sorted alphabetically so that the order is deterministic. D = |V| is the <b>dimension</b> of the vector space.</li>
+  <li><b>Index map:</b> idx: V &rarr; {0, 1, &hellip;, D&minus;1}, where idx(t<sub>i</sub>) = i.</li>
+  <li><b>Normalized TF vector</b> of a document d: a vector <b>d</b> &isin; &#8477;<sup>D</sup> where
+    <div class="formula">d<sub>i</sub> = count(t<sub>i</sub>, d) / |T(d)|</div>
+    that is, the number of times t<sub>i</sub> appears in d, divided by the total number of tokens in d.</li>
+  <li><b>Query vector</b> <b>q</b> is built the same way from the query string, using the same V. Query words that are not in V are ignored.</li>
+</ul>
+
+<h3>4.2 Vector operations</h3>
+<div class="formula">Dot product: &nbsp; q &middot; d = &Sigma;<sub>i=0</sub><sup>D&minus;1</sup> q<sub>i</sub> d<sub>i</sub></div>
+<div class="formula">Euclidean norm: &nbsp; ||d|| = &radic;( &Sigma;<sub>i=0</sub><sup>D&minus;1</sup> d<sub>i</sub><sup>2</sup> )</div>
+<div class="formula">Cosine similarity: &nbsp; Score(Q, D) = (q &middot; d) / ( ||q|| &times; ||d|| )</div>
+<p>Cosine similarity is the cosine of the angle &theta; between the two vectors. It compares the <i>direction</i> of the vectors, not their length, so a long document and a short document about the same topic can still score high.</p>
+
+<h3>4.3 Properties</h3>
+<ul>
+  <li>Every TF value is &ge; 0, so no angle can exceed 90&deg;. Therefore <b>0 &le; Score &le; 1</b>.</li>
+  <li>Score = 1 means the two vectors point in exactly the same direction (same word proportions). Score = 0 means the two share no words.</li>
+  <li>Multiplying a vector by a positive number does not change the cosine, so the normalization in the TF definition does not change the ranking. It keeps the numbers small and comparable.</li>
+</ul>
+
+<h3>4.4 Edge cases</h3>
+<table>
+  <tr><th style="width:36%">Situation</th><th>Result</th></tr>
+  <tr><td>||q|| = 0 (empty query, or no query word is in V)</td><td>The denominator would be 0. The system returns Score = 0 instead of raising a division error.</td></tr>
+  <tr><td>||d|| = 0 (empty document)</td><td>Score = 0 for that document.</td></tr>
+  <tr><td>Disjoint vocabularies (no shared words)</td><td>q &middot; d = 0, so Score = 0.</td></tr>
+  <tr><td>Input is not a string</td><td>A <code>TypeError</code> with a clear message is raised.</td></tr>
+  <tr><td>Floating-point result slightly above 1 (for example 1.0000000002)</td><td>The score is clamped to the range [0, 1].</td></tr>
+</table>
+
+<h3>4.5 Worked example</h3>
+<p>Documents: <code>d1 = "the cat sat on the mat"</code>, <code>d2 = "the dog sat on the log"</code>. Query: <code>"cat mat"</code>.</p>
+<p>Vocabulary (sorted): cat, dog, log, mat, on, sat, the &nbsp;&rarr;&nbsp; D = 7.</p>
+<table>
+  <tr><th>Vector (raw counts)</th><th>cat</th><th>dog</th><th>log</th><th>mat</th><th>on</th><th>sat</th><th>the</th></tr>
+  <tr><td>d1</td><td>1</td><td>0</td><td>0</td><td>1</td><td>1</td><td>1</td><td>2</td></tr>
+  <tr><td>d2</td><td>0</td><td>1</td><td>1</td><td>0</td><td>1</td><td>1</td><td>2</td></tr>
+  <tr><td>q</td><td>1</td><td>0</td><td>0</td><td>1</td><td>0</td><td>0</td><td>0</td></tr>
+</table>
+<ul>
+  <li>q &middot; d1 = 1&times;1 + 1&times;1 = 2; &nbsp;||q|| = &radic;2; &nbsp;||d1|| = &radic;(1+1+1+1+4) = &radic;8.<br>
+      Score(q, d1) = 2 / (&radic;2 &times; &radic;8) = 2 / 4 = <b>0.5</b></li>
+  <li>q &middot; d2 = 0, so Score(q, d2) = <b>0</b>.</li>
+</ul>
+<p>Ranking: d1 first, d2 second. This example will also be used as the first test case in Milestone 2.</p>
+
+<h2>5. Selection of the Representation Model (Backbone)</h2>
+<p>The SDMS template for this milestone asks for a "CNN backbone" selection. That wording was written for an image-retrieval project. In this project the data is <b>text</b>, so the equivalent decision is: <b>which model should turn a document into a vector?</b> The options are compared below.</p>
+<table>
+  <tr><th>Option</th><th>How it works</th><th>Fits this project?</th></tr>
+  <tr><td>CNN image embeddings</td><td>A neural network turns an image into a vector.</td><td>No. Our data is text, not images.</td></tr>
+  <tr><td>Neural text embeddings (for example BERT)</td><td>A trained neural network turns a sentence into a vector.</td><td>No. It needs ML frameworks and pretrained weights, which breaks the standard-library rule. It is also a black box, so it is hard to explain mathematically.</td></tr>
+  <tr><td>TF-IDF</td><td>TF weighted by how rare a word is across the corpus.</td><td>Possible later. Planned as an optional extension after the basic model works.</td></tr>
+  <tr><td><b>Normalized term-frequency VSM + cosine similarity (chosen)</b></td><td>Each document is a vector of word frequencies. Closeness is measured by angle.</td><td><b>Yes.</b> It is fully transparent, can be built with the standard library, uses linear algebra directly, and every step can be explained and tested.</td></tr>
+</table>
+<p><b>Decision:</b> the Vector Space Model with normalized term-frequency vectors and cosine similarity.</p>
+
+<h2>6. System Architecture</h2>
+<h3>6.1 Data-flow diagram (Level 1)</h3>
+<svg viewBox="0 0 760 120" width="760" height="120" xmlns="http://www.w3.org/2000/svg" font-family="Arial" font-size="12">
+  <defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#000"/></marker></defs>
+  <g fill="#fff" stroke="#000">
+    <rect x="5"   y="35" width="100" height="50"/>
+    <rect x="135" y="35" width="100" height="50"/>
+    <rect x="265" y="35" width="110" height="50"/>
+    <rect x="405" y="35" width="110" height="50"/>
+    <rect x="545" y="35" width="100" height="50"/>
+    <rect x="665" y="35" width="90"  height="50"/>
+  </g>
+  <g text-anchor="middle" fill="#000">
+    <text x="55"  y="58">Document</text><text x="55"  y="73">input</text>
+    <text x="185" y="58">Normalization</text><text x="185" y="73">&amp; tokenization</text>
+    <text x="320" y="58">Vocabulary</text><text x="320" y="73">basis V</text>
+    <text x="460" y="58">Vector</text><text x="460" y="73">projection (TF)</text>
+    <text x="595" y="58">Cosine</text><text x="595" y="73">scoring</text>
+    <text x="710" y="58">Ranked</text><text x="710" y="73">retrieval</text>
+  </g>
+  <g stroke="#000" marker-end="url(#a)">
+    <line x1="105" y1="60" x2="133" y2="60"/>
+    <line x1="235" y1="60" x2="263" y2="60"/>
+    <line x1="375" y1="60" x2="403" y2="60"/>
+    <line x1="515" y1="60" x2="543" y2="60"/>
+    <line x1="645" y1="60" x2="663" y2="60"/>
+  </g>
+  <text x="380" y="15" text-anchor="middle">User query follows the same path (normalize, project into V) and joins at the scoring step</text>
+  <path d="M185 35 L185 22 L595 22 L595 33" fill="none" stroke="#000" stroke-dasharray="4" marker-end="url(#a)"/>
+</svg>
+<p>Reading the diagram: documents are cleaned, a vocabulary is built from them, and each document is projected into a vector. When a user types a query, it goes through the same cleaning and projection, is scored against every document, and the results are sorted.</p>
+
+<h3>6.2 Level 0 (context)</h3>
+<p><b>User</b> &rarr; (query string) &rarr; <b>[Retrieval Engine]</b> &larr; (document collection) &larr; <b>Corpus files</b>. The engine returns a <b>ranked list of documents with scores</b> to the user.</p>
+
+<h3>6.3 Modules and interfaces</h3>
+<table>
+  <tr><th style="width:26%">Function</th><th>Input &rarr; Output</th><th>Precondition / Postcondition</th></tr>
+  <tr><td><code>normalize_text(text)</code></td><td><code>str</code> &rarr; <code>list[str]</code></td><td>Pre: <code>text</code> is a <code>str</code>. Post: tokens are lowercase, contain no punctuation and are not empty.</td></tr>
+  <tr><td><code>build_vocabulary(docs)</code></td><td><code>list[list[str]]</code> &rarr; <code>dict[str, int]</code></td><td>Post: indices are unique and run from 0 to D&minus;1 in sorted-word order.</td></tr>
+  <tr><td><code>vectorize(tokens, vocab)</code></td><td><code>list[str], dict</code> &rarr; <code>list[float]</code></td><td>Post: length equals D; all values &ge; 0; values sum to 1 when the token list is non-empty.</td></tr>
+  <tr><td><code>dot_product(a, b)</code></td><td>two vectors &rarr; <code>float</code></td><td>Pre: <code>len(a) == len(b)</code>.</td></tr>
+  <tr><td><code>euclidean_norm(a)</code></td><td>vector &rarr; <code>float</code></td><td>Post: result &ge; 0.</td></tr>
+  <tr><td><code>cosine_similarity(a, b)</code></td><td>two vectors &rarr; <code>float</code></td><td>Post: result in [0, 1]; returns 0 if either norm is 0.</td></tr>
+  <tr><td><code>search(query, corpus, k)</code></td><td><code>str</code> &rarr; list of (doc_id, score)</td><td>Post: sorted by score (highest first), ties broken by doc_id, at most k results.</td></tr>
+</table>
+
+<h3>6.4 Standard-library boundary</h3>
+<table>
+  <tr><th style="width:25%">Allowed</th><td><code>re</code>, <code>string</code>, <code>math</code>, <code>json</code>, <code>sys</code>, <code>time</code>, <code>collections</code>, <code>heapq</code>, <code>unittest</code>, <code>tracemalloc</code></td></tr>
+  <tr><th>Not allowed</th><td>NumPy, Pandas, Scikit-learn, NLTK, SciPy and any other third-party package</td></tr>
+</table>
+
+<h2>7. Program Invariants and Input Constraints</h2>
+<table>
+  <tr><th style="width:8%">ID</th><th>Invariant (must always be true)</th></tr>
+  <tr><td>I1</td><td>Every vector has length exactly D = |V|.</td></tr>
+  <tr><td>I2</td><td>Every token is a non-empty lowercase string with no punctuation.</td></tr>
+  <tr><td>I3</td><td>Vocabulary indices are unique and contiguous (0 to D&minus;1), assigned in sorted order, so the mapping is deterministic.</td></tr>
+  <tr><td>I4</td><td>Every TF value is &ge; 0. For a non-empty document the TF values sum to 1.</td></tr>
+  <tr><td>I5</td><td>Every cosine score lies in [0, 1].</td></tr>
+  <tr><td>I6</td><td>Documents and queries must be <code>str</code>. Any other type raises <code>TypeError</code>.</td></tr>
+  <tr><td>I7</td><td>Ranking is deterministic: equal scores are ordered by document id.</td></tr>
+  <tr><td>I8</td><td>The vocabulary is built only from the corpus; the query never changes V.</td></tr>
+</table>
+<p>These invariants will be written as <code>assert</code> statements and unit tests in Milestones 2 and 4.</p>
+
+<h2>8. Data and Index Schema</h2>
+<p>The SDMS template asks for a schema for "image metadata and vector embeddings". The equivalent for this text project is the schema for <b>document metadata</b> and <b>vector representations</b>. A plain JSON file is enough; no database server is needed.</p>
+
+<h3>8.1 Document store</h3>
+<table>
+  <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+  <tr><td>doc_id</td><td>int</td><td>Unique id of the document</td></tr>
+  <tr><td>title</td><td>str</td><td>Title or file name</td></tr>
+  <tr><td>raw_text</td><td>str</td><td>Original text</td></tr>
+  <tr><td>token_count</td><td>int</td><td>Number of tokens after normalization</td></tr>
+</table>
+
+<h3>8.2 Vocabulary</h3>
+<table>
+  <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+  <tr><td>term</td><td>str</td><td>A unique word</td></tr>
+  <tr><td>index</td><td>int</td><td>Its coordinate number in the vector space (0 to D&minus;1)</td></tr>
+</table>
+
+<h3>8.3 Vector representation</h3>
+<table>
+  <tr><th>Stage</th><th>Structure</th></tr>
+  <tr><td>Milestones 2&ndash;3 (dense)</td><td><code>doc_id &rarr; list[float]</code> of length D</td></tr>
+  <tr><td>Milestone 4 (sparse)</td><td><code>doc_id &rarr; dict[term_index, tf]</code>, storing only the non-zero entries</td></tr>
+</table>
+
+<h3>8.4 Inverted index (Milestone 4)</h3>
+<table>
+  <tr><th>Key</th><th>Value</th></tr>
+  <tr><td>term</td><td>list of (doc_id, tf) pairs for documents that contain the term</td></tr>
+</table>
+<p>With an inverted index, a query only needs to look at documents that share at least one word with it, instead of scanning the whole corpus. Per-document norms are computed once and stored.</p>
+<pre>{
+  "documents": [{"doc_id": 0, "title": "doc0", "raw_text": "the cat sat on the mat", "token_count": 6}],
+  "vocabulary": {"cat": 0, "dog": 1, "log": 2, "mat": 3, "on": 4, "sat": 5, "the": 6},
+  "inverted_index": {"cat": [[0, 0.1667]], "mat": [[0, 0.1667]]}
+}</pre>
+
+<h2>9. Complexity (Planned Analysis)</h2>
+<table>
+  <tr><th>Stage</th><th>Dense version</th><th>Sparse / inverted-index version</th></tr>
+  <tr><td>Build vocabulary</td><td>O(T log D) where T = total tokens</td><td>same</td></tr>
+  <tr><td>Score one query against N documents</td><td>O(N &times; D)</td><td>O(sum of posting-list lengths for the query terms)</td></tr>
+  <tr><td>Memory for vectors</td><td>O(N &times; D)</td><td>O(number of non-zero entries)</td></tr>
+</table>
+<p>These claims will be tested by experiments in Milestone 4.</p>
+
+<h2>10. Project Plan</h2>
+<table>
+  <tr><th style="width:18%">Milestone</th><th>Deliverables</th><th style="width:16%">Deadline</th></tr>
+  <tr><td>1. Requirement analysis &amp; design</td><td>This report: requirements, mathematical specification, diagrams, invariants, schema</td><td>3/10/2026</td></tr>
+  <tr><td>2. Core modules &amp; prototype</td><td>Text normalization, vocabulary, TF vectors, dot product, norm, cosine; prototype on a synthetic document set</td><td>14/10/2026</td></tr>
+  <tr><td>3. Integration &amp; evaluation</td><td>Command-line interface, real-time query loop; relevance, score distribution and latency measurements</td><td>29/10/2026</td></tr>
+  <tr><td>4. Testing &amp; optimization</td><td>Sparse vectors, inverted index, unit-test suite for edge cases, stress tests and memory profiling</td><td>13/11/2026</td></tr>
+  <tr><td>5. Deployment &amp; documentation</td><td>Repository with setup guide, final report, slides, viva preparation</td><td>28/11/2026</td></tr>
+</table>
+
+</body>
+</html>
