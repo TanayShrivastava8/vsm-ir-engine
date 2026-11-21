@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Milestone 4 Report - Vector Space Information Retrieval Engine</title>
+<style>
+  @page { size: A4; margin: 20mm; }
+  body { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 1.45; color: #000; max-width: 800px; margin: 0 auto; padding: 20px; }
+  h1 { font-size: 20pt; text-align: center; margin-bottom: 4px; }
+  h2 { font-size: 15pt; border-bottom: 1px solid #444; padding-bottom: 3px; margin-top: 26px; page-break-after: avoid; }
+  h3 { font-size: 12.5pt; margin-bottom: 4px; page-break-after: avoid; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 11pt; page-break-inside: avoid; }
+  th, td { border: 1px solid #444; padding: 5px 7px; text-align: left; vertical-align: top; }
+  th { background: #e8e8e8; }
+  .num { text-align: right; }
+  code, pre { font-family: "Courier New", monospace; font-size: 9.5pt; }
+  pre { background: #f4f4f4; border: 1px solid #bbb; padding: 8px; white-space: pre-wrap; page-break-inside: avoid; }
+  .center { text-align: center; }
+  .note { border-left: 4px solid #555; padding: 6px 10px; background: #f7f7f7; margin: 10px 0; page-break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<p class="center">Madhav Institute of Technology &amp; Science, Gwalior<br>
+B.Tech &ndash; Mathematics and Computing</p>
+
+<h1>Milestone 4 Report</h1>
+<p class="center"><b>Comprehensive Testing &amp; Optimization</b></p>
+<p class="center"><b>Project: Design and Implementation of a Vector Space Information Retrieval Engine from First Principles</b></p>
+
+<table>
+  <tr><th style="width:30%">Team members</th><td>Tanay Shrivastava (BTMC26O1138)<br>Tanay Jaiswal (BTMC26O1137)</td></tr>
+  <tr><th>Project guide</th><td>Monika Vyas</td></tr>
+  <tr><th>Submission date</th><td>21/11/2026</td></tr>
+</table>
+
+<h2>1. Objective &amp; Scope Alignment</h2>
+<p>Milestone 4 transitions the engine from the dense <i>O</i>(<i>N</i> &times; <i>D</i>) prototype to a memory- and latency-optimized <b>Sparse Vector + Inverted Index</b> architecture (Section 8.3&ndash;8.4 of Milestone 1), verifies every program invariant (<b>I1&ndash;I8</b>) and edge case via an automated <code>unittest</code> suite (<code>test_vsm.py</code>), and empirically profiles memory and runtime scaling using Python's <code>tracemalloc</code> and <code>time</code> modules (<code>benchmark.py</code>).</p>
+<div class="note">
+  <b>Note on SDMS Template Mapping:</b> For our local standard-library text IR engine, "optimization &amp; stress testing" corresponds to replacing dense <i>O</i>(<i>N</i> &times; <i>D</i>) scoring with sparse posting-list traversal and verifying numerical equivalence across up to 2,000 synthetic documents; "error handling &amp; security/safety" corresponds to strict input-type validation (<code>I6</code>), NaN/infinity rejection, zero-norm protection, floating-point clamping (<code>I5</code>), and zero third-party dependency attack surface (<b>NFR2</b>).
+</div>
+
+<h2>2. Sparse Vector &amp; Inverted Index Optimization</h2>
+<p>In natural-language corpora, each document contains only a tiny fraction of vocabulary <i>V</i>, leaving &gt;95% of entries in dense vectors equal to <code>0.0</code>. Milestone 4 introduces four optimized structures in <code>vsm_engine.py</code> (serialized cleanly to JSON in <code>sample_index.json</code>):</p>
+<table>
+  <tr><th style="width:24%">Structure</th><th style="width:26%">Representation</th><th>Optimization Impact</th></tr>
+  <tr><td><code>sparse_vectors</code></td><td><code>{doc_id: {term_idx: tf}}</code></td><td>Stores only strictly positive TF weights: memory drops from <i>O</i>(<i>N</i> &times; <i>D</i>) to <i>O</i>(nnz).</td></tr>
+  <tr><td><code>doc_norms</code></td><td><code>{doc_id: float}</code></td><td>Precomputes ||<b>d</b>|| once at index time so query scoring divides in <i>O</i>(1) without rescanning <b>d</b>.</td></tr>
+  <tr><td><code>inverted_index</code></td><td><code>{term: [[doc_id, tf], ...]}</code></td><td>Query traverses only posting lists of in-vocabulary query terms, avoiding full corpus scan.</td></tr>
+  <tr><td>Top-<i>k</i> Selection</td><td><code>heapq.nsmallest(k, ...)</code></td><td>Extracts top-<i>k</i> in <i>O</i>(<i>M</i> log <i>k</i>) with deterministic <code>(-score, doc_id)</code> tie-breaking (<code>I7</code>).</td></tr>
+</table>
+
+<h2>3. Automated Unit-Test &amp; Stress-Test Verification (<code>test_vsm.py</code>)</h2>
+<p>Executing <code>python3 -m unittest test_vsm.py -v</code> passed <b>10 / 10 test suites in 0.226 seconds</b>:</p>
+<table>
+  <tr><th style="width:42%">Test Case</th><th>Requirements / Invariants Verified</th><th style="width:10%">Result</th></tr>
+  <tr><td><code>test_worked_example_section_4_5</code></td><td>Exact Section 4.5 vocabulary (<i>D</i>=7), scores (0.5, 0.0), dense &amp; inverted match</td><td><b>PASS</b></td></tr>
+  <tr><td><code>test_normalize_text_fr2_and_invariants_i2_i6</code></td><td>FR2, I2, I6: case-folding, punctuation stripping, whitespace, <code>TypeError</code> on non-str</td><td><b>PASS</b></td></tr>
+  <tr><td><code>test_build_vocabulary_fr3_and_invariant_i3</code></td><td>FR3, I3: sorted unique contiguous indices 0..<i>D</i>&minus;1, invalid token rejection</td><td><b>PASS</b></td></tr>
+  <tr><td><code>test_vectorize_fr4_fr6_and_invariants_i1_i4</code></td><td>FR4, FR6, I1, I4: length <i>D</i>, entries &ge; 0, sum = 1.0, OOV words ignored</td><td><b>PASS</b></td></tr>
+  <tr><td><code>test_vector_operations_fr5</code></td><td>FR5: dot product, Euclidean norm, length mismatch &amp; negative entry checks</td><td><b>PASS</b></td></tr>
+  <tr><td><code>test_edge_cases_section_4_4_and_invariant_i5</code></td><td>FR8, NFR3, I5: empty/OOV query, empty doc/corpus, float clamp &le; 1.0, <code>k=0</code></td><td><b>PASS</b></td></tr>
+  <tr><td><code>test_deterministic_tie_breaking_nfr1_and_invariant_i7</code></td><td>NFR1, I7: identical scores strictly ordered by ascending <code>doc_id</code></td><td><b>PASS</b></td></tr>
+  <tr><td><code>test_query_never_modifies_vocabulary_invariant_i8</code></td><td>I8: unseen query terms never mutate corpus vocabulary <i>V</i></td><td><b>PASS</b></td></tr>
+  <tr><td><code>test_schema_json_roundtrip_and_inverted_index_equivalence</code></td><td>Section 8: JSON serialization round-trip, minimal schema load, dense=sparse</td><td><b>PASS</b></td></tr>
+  <tr><td><code>test_stress_equivalence_milestone_4</code></td><td>200-document synthetic stress test confirming dense &amp; inverted match (tol 10<sup>&minus;9</sup>)</td><td><b>PASS</b></td></tr>
+</table>
+
+<h2>4. Empirical Complexity &amp; Memory Profiling (<code>benchmark.py</code>)</h2>
+<p>Measured using Python's standard-library <code>tracemalloc</code> (peak allocated memory) and <code>time.perf_counter()</code> (5-run average query latency) on synthetic corpora with <i>D</i> = 800 unique terms and 20 tokens/document:</p>
+<table>
+  <tr>
+    <th class="num">N (Docs)</th>
+    <th class="num">D (|V|)</th>
+    <th class="num">Dense Mem (KB)</th>
+    <th class="num">Sparse Schema Mem (KB)</th>
+    <th class="num">Dense Time (ms)</th>
+    <th class="num">InvIdx Time (ms)</th>
+    <th class="num">Speedup</th>
+  </tr>
+  <tr>
+    <td class="num">100</td><td class="num">800</td>
+    <td class="num">680.62</td><td class="num">562.17</td>
+    <td class="num">122.385</td><td class="num">0.056</td><td class="num"><b>2,193.5x</b></td>
+  </tr>
+  <tr>
+    <td class="num">500</td><td class="num">800</td>
+    <td class="num">3,389.28</td><td class="num">2,219.53</td>
+    <td class="num">614.420</td><td class="num">0.097</td><td class="num"><b>6,303.6x</b></td>
+  </tr>
+  <tr>
+    <td class="num">1,000</td><td class="num">800</td>
+    <td class="num">6,780.53</td><td class="num">4,309.48</td>
+    <td class="num">1,227.147</td><td class="num">0.142</td><td class="num"><b>8,661.8x</b></td>
+  </tr>
+  <tr>
+    <td class="num">2,000</td><td class="num">800</td>
+    <td class="num">13,561.12</td><td class="num">8,454.21</td>
+    <td class="num">2,469.131</td><td class="num">0.238</td><td class="num"><b>10,376.2x</b></td>
+  </tr>
+</table>
+<p><i>Equivalence assertion passed at every corpus size: Dense and Inverted-Index top-10 rankings and scores matched identically within 10<sup>&minus;9</sup>.</i></p>
+
+<h2>5. Complexity &amp; Optimization Analysis</h2>
+<ul>
+  <li><b>Empirical Proof of Dense <i>O</i>(<i>N</i> &times; <i>D</i>):</b> Scaling <i>N</i> by 20&times; (100 &rarr; 2,000) scaled dense peak memory by <b>19.9&times;</b> (680.6 &rarr; 13,561.1 KB) and dense query time by <b>20.2&times;</b> (122.4 &rarr; 2,469.1 ms).</li>
+  <li><b>Inverted-Index Latency Collapse:</b> Because queries traverse only posting lists for matching query terms rather than all <i>N</i> &times; <i>D</i> slots, latency stayed at <b>0.238 ms</b> at <i>N</i> = 2,000&mdash;a <b>10,376&times; speedup</b>.</li>
+  <li><b>Peak Memory Reduction:</b> At <i>N</i> = 2,000, the entire sparse schema (raw document store + vocabulary + sparse vectors + precomputed norms + inverted index) consumed <b>37.7% less peak RAM</b> than the dense float matrix alone.</li>
+</ul>
+
+</body>
+</html>

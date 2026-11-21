@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Milestone 5 Final Report - Vector Space Information Retrieval Engine</title>
+<style>
+  @page { size: A4; margin: 20mm; }
+  body { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 1.45; color: #000; max-width: 800px; margin: 0 auto; padding: 20px; }
+  h1 { font-size: 20pt; text-align: center; margin-bottom: 4px; }
+  h2 { font-size: 15pt; border-bottom: 1px solid #444; padding-bottom: 3px; margin-top: 26px; page-break-after: avoid; }
+  h3 { font-size: 12.5pt; margin-bottom: 4px; page-break-after: avoid; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 11pt; page-break-inside: avoid; }
+  th, td { border: 1px solid #444; padding: 5px 7px; text-align: left; vertical-align: top; }
+  th { background: #e8e8e8; }
+  .num { text-align: right; }
+  code, pre { font-family: "Courier New", monospace; font-size: 9.5pt; }
+  pre { background: #f4f4f4; border: 1px solid #bbb; padding: 8px; white-space: pre-wrap; page-break-inside: avoid; }
+  .center { text-align: center; }
+  .formula { text-align: center; font-size: 12.5pt; margin: 10px 0; }
+</style>
+</head>
+<body>
+
+<p class="center">Madhav Institute of Technology &amp; Science, Gwalior<br>
+B.Tech &ndash; Mathematics and Computing</p>
+
+<h1>Milestone 5: Final Project Report</h1>
+<p class="center"><b>Deployment, Technical Documentation, User Manual &amp; Viva Preparation</b></p>
+<p class="center"><b>Project: Design and Implementation of a Vector Space Information Retrieval Engine from First Principles</b></p>
+
+<table>
+  <tr><th style="width:30%">Team members</th><td>Tanay Shrivastava (BTMC26O1138)<br>Tanay Jaiswal (BTMC26O1137)</td></tr>
+  <tr><th>Project guide</th><td>Monika Vyas</td></tr>
+  <tr><th>Submission date</th><td>21/11/2026</td></tr>
+  <tr><th>Runtime Requirement</th><td>Python 3.8+ Standard Library Only (Zero External Packages)</td></tr>
+</table>
+
+<h2>1. Executive Summary</h2>
+<p>This final report documents the end-to-end design, implementation, verification, optimization, and deployment packaging of a deterministic <b>Vector Space Information Retrieval (IR) Engine</b> built strictly from mathematical first principles using Python's standard library alone. Across Milestones 1&ndash;5, the team progressed from formal requirements and invariants to a dense linear-algebra prototype, an interactive CLI with latency/distribution telemetry, a sparse inverted-index engine achieving a <b>10,376&times; query speedup</b> at <i>N</i> = 2,000, and complete technical/viva documentation.</p>
+
+<h2>2. Mathematical Foundation &amp; Invariant Summary</h2>
+<div class="formula">d<sub>i</sub> = count(t<sub>i</sub>, d) / |T(d)| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Score(q, d) = (q &middot; d) / ( ||q|| &times; ||d|| ) &isin; [0, 1]</div>
+<p>All eight Milestone 1 invariants are enforced at runtime via explicit exception checks and <code>assert</code> statements: <b>I1</b> (vector length = <i>D</i>), <b>I2</b> (clean lowercase tokens), <b>I3</b> (alphabetically sorted contiguous indices 0..<i>D</i>&minus;1), <b>I4</b> (TF &ge; 0, sum = 1.0), <b>I5</b> (clamped cosine score in [0, 1]), <b>I6</b> (<code>TypeError</code> on non-string inputs), <b>I7</b> (deterministic ascending <code>doc_id</code> tie-breaking), and <b>I8</b> (queries never modify vocabulary <i>V</i>).</p>
+
+<h2>3. Milestone Compliance &amp; Deliverables Matrix</h2>
+<table>
+  <tr><th style="width:16%">Milestone</th><th style="width:34%">Key Deliverables</th><th>Verification Status</th></tr>
+  <tr><td>Milestone 1</td><td>Requirements (FR1&ndash;FR9, NFR1&ndash;NFR5), math spec, DFD, invariants, schema</td><td>Evaluated (<code>docs/milestone_12_report.html</code>)</td></tr>
+  <tr><td>Milestone 2</td><td>7 core functions in <code>vsm_engine.py</code>, Section 4.5 worked example</td><td>Evaluated; <code>Score(d1)=0.5000</code>, <code>Score(d2)=0.0000</code></td></tr>
+  <tr><td>Milestone 3</td><td>Interactive CLI (<code>cli.py</code>), score distributions, latency measurement</td><td>Verified on default 8-doc corpus &amp; <code>sample_index.json</code></td></tr>
+  <tr><td>Milestone 4</td><td>Sparse/inverted index, <code>test_vsm.py</code>, <code>benchmark.py</code>, JSON schema</td><td>10/10 unit tests passed (0.226s); 10,376&times; speedup</td></tr>
+  <tr><td>Milestone 5</td><td>Git repository, <code>README.md</code>, Final Report, Slides, Viva Prep</td><td>Complete &amp; packaged cleanly in version control</td></tr>
+</table>
+
+<h2>4. Deployment &amp; Repository Structure</h2>
+<p>Because the system uses zero external libraries (strictly limited to <code>re</code>, <code>string</code>, <code>math</code>, <code>json</code>, <code>sys</code>, <code>time</code>, <code>collections</code>, <code>heapq</code>, <code>unittest</code>, <code>tracemalloc</code>), it deploys instantly on any Linux, macOS, or Windows institutional host with Python 3.8+ without virtual environments or internet access.</p>
+<pre>vsm_ir_engine/
+├── vsm_engine.py                  # Core dense VSM + sparse vector &amp; inverted-index engine
+├── cli.py                         # Interactive search CLI, score distribution &amp; latency telemetry
+├── test_vsm.py                    # Automated unittest suite (10 suites: FR1-FR8, I1-I8, stress test)
+├── benchmark.py                   # Empirical time &amp; tracemalloc complexity profiler
+├── sample_index.json              # Section 8.4 JSON schema instance (worked example)
+├── README.md                      # Setup guide &amp; technical specification
+└── docs/
+    ├── milestone_12_report.html   # Milestone 1 specification report
+    ├── milestone_3_report.html    # Milestone 3 integration &amp; evaluation report
+    ├── milestone_4_report.html    # Milestone 4 testing &amp; optimization report
+    ├── milestone_5_report.html    # Milestone 5 final report (this document)
+    ├── FINAL_REPORT.md            # Markdown final report
+    ├── SLIDES.md                  # 10-slide presentation outline
+    └── VIVA_PREP.md               # Examiner viva defense Q&amp;A</pre>
+
+<h2>5. User Manual (Setup &amp; Execution)</h2>
+<table>
+  <tr><th style="width:36%">Command</th><th>Purpose</th></tr>
+  <tr><td><code>python3 vsm_engine.py</code></td><td>Runs the standalone Section 4.5 worked-example prototype verification.</td></tr>
+  <tr><td><code>python3 -m unittest test_vsm.py -v</code></td><td>Executes all 10 unit, invariant, edge-case, JSON, and stress test suites.</td></tr>
+  <tr><td><code>python3 cli.py</code></td><td>Starts the interactive ad-hoc search CLI on the built-in 8-document corpus.</td></tr>
+  <tr><td><code>python3 cli.py sample_index.json</code></td><td>Starts the CLI using any custom JSON document list or Section 8 index file.</td></tr>
+  <tr><td><code>python3 benchmark.py</code></td><td>Runs the Dense vs. Sparse/Inverted-Index latency and <code>tracemalloc</code> benchmark.</td></tr>
+</table>
+<p>Inside the CLI prompt (<code>Query&gt;</code>), users can type any free-text query or invoke <code>:docs</code>, <code>:schema</code>, <code>:top &lt;k&gt;</code>, <code>:save &lt;file.json&gt;</code>, <code>:help</code>, or <code>:quit</code>.</p>
+
+<h2>6. Summary of Final Verification Results</h2>
+<table>
+  <tr>
+    <th class="num">N (Docs)</th><th class="num">D (|V|)</th>
+    <th class="num">Dense Mem (KB)</th><th class="num">Sparse Mem (KB)</th>
+    <th class="num">Dense (ms)</th><th class="num">InvIdx (ms)</th><th class="num">Speedup</th>
+  </tr>
+  <tr><td class="num">100</td><td class="num">800</td><td class="num">680.62</td><td class="num">562.17</td><td class="num">122.385</td><td class="num">0.056</td><td class="num">2,193.5x</td></tr>
+  <tr><td class="num">500</td><td class="num">800</td><td class="num">3,389.28</td><td class="num">2,219.53</td><td class="num">614.420</td><td class="num">0.097</td><td class="num">6,303.6x</td></tr>
+  <tr><td class="num">1,000</td><td class="num">800</td><td class="num">6,780.53</td><td class="num">4,309.48</td><td class="num">1,227.147</td><td class="num">0.142</td><td class="num">8,661.8x</td></tr>
+  <tr><td class="num">2,000</td><td class="num">800</td><td class="num">13,561.12</td><td class="num">8,454.21</td><td class="num">2,469.131</td><td class="num">0.238</td><td class="num"><b>10,376.2x</b></td></tr>
+</table>
+
+<h2>7. Presentation &amp; Viva Voce Readiness</h2>
+<ul>
+  <li><b>Presentation Deck (<code>docs/SLIDES.md</code>):</b> 10 structured slides covering problem framing, linear-algebra formulation, Section 4.5 worked example, architecture, invariants I1&ndash;I8, CLI demo, inverted-index optimization, and live benchmark results.</li>
+  <li><b>Viva Defense (<code>docs/VIVA_PREP.md</code>):</b> Covers core theoretical and systems questions: cosine vs. Euclidean distance, [0, 1] score bounds, float clamping vs. rounding, scalar invariance of normalized TF, zero-norm handling, precomputed norms, and TF-IDF/BM25 extensions.</li>
+</ul>
+
+<h2>8. Conclusion &amp; Future Extensions</h2>
+<p>All functional and non-functional requirements specified in Milestone 1 have been fully satisfied and empirically verified with zero external dependencies. Future work includes adding Inverse Document Frequency weighting (TF-IDF / BM25) to reduce stopword dominance, basic stemming, and disk-backed sharded posting lists for multi-gigabyte corpora.</p>
+
+</body>
+</html>

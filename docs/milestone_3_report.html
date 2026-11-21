@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Milestone 3 Report - Vector Space Information Retrieval Engine</title>
+<style>
+  @page { size: A4; margin: 20mm; }
+  body { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 1.45; color: #000; max-width: 800px; margin: 0 auto; padding: 20px; }
+  h1 { font-size: 20pt; text-align: center; margin-bottom: 4px; }
+  h2 { font-size: 15pt; border-bottom: 1px solid #444; padding-bottom: 3px; margin-top: 26px; page-break-after: avoid; }
+  h3 { font-size: 12.5pt; margin-bottom: 4px; page-break-after: avoid; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 11pt; page-break-inside: avoid; }
+  th, td { border: 1px solid #444; padding: 5px 7px; text-align: left; vertical-align: top; }
+  th { background: #e8e8e8; }
+  code, pre { font-family: "Courier New", monospace; font-size: 9.5pt; }
+  pre { background: #f4f4f4; border: 1px solid #bbb; padding: 8px; white-space: pre-wrap; page-break-inside: avoid; }
+  .center { text-align: center; }
+  .note { border-left: 4px solid #555; padding: 6px 10px; background: #f7f7f7; margin: 10px 0; page-break-inside: avoid; }
+  svg { display: block; margin: 12px auto; max-width: 100%; page-break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<p class="center">Madhav Institute of Technology &amp; Science, Gwalior<br>
+B.Tech &ndash; Mathematics and Computing</p>
+
+<h1>Milestone 3 Report</h1>
+<p class="center"><b>Integration &amp; Intermediate Evaluation</b></p>
+<p class="center"><b>Project: Design and Implementation of a Vector Space Information Retrieval Engine from First Principles</b></p>
+
+<table>
+  <tr><th style="width:30%">Team members</th><td>Tanay Shrivastava (BTMC26O1138)<br>Tanay Jaiswal (BTMC26O1137)</td></tr>
+  <tr><th>Project guide</th><td>Monika Vyas</td></tr>
+  <tr><th>Submission date</th><td>21/11/2026</td></tr>
+</table>
+
+<h2>1. Objective &amp; Scope Alignment</h2>
+<p>Milestone 3 integrates the core Vector Space Model (VSM) backend implemented in Milestone 2 (<code>vsm_engine.py</code>) with an interactive user-facing Command-Line Interface (<code>cli.py</code>, fulfilling <b>FR9</b>), and conducts intermediate empirical evaluation of retrieval relevance, score distributions, tie-breaking determinism, and query latency (<b>NFR1</b>, <b>NFR3</b>, <b>NFR5</b>).</p>
+<div class="note">
+  <b>Note on SDMS Template Mapping:</b> The generic SDMS milestone text references a web "Lost &amp; Found" form and admin dashboard from an image-retrieval template. Consistent with our approved Milestone 1 specification, our project is a first-principles text Information Retrieval engine written exclusively in Python's standard library. Its user interface is an interactive real-time CLI supporting ad-hoc search queries, corpus inspection (<code>:docs</code>), schema inspection (<code>:schema</code>), top-<i>k</i> configuration (<code>:top &lt;k&gt;</code>), and JSON persistence (<code>:save</code>).
+</div>
+
+<h2>2. System Integration Architecture</h2>
+<svg viewBox="0 0 760 115" width="760" height="115" xmlns="http://www.w3.org/2000/svg" font-family="Arial" font-size="11.5">
+  <defs><marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#000"/></marker></defs>
+  <g fill="#fff" stroke="#000">
+    <rect x="10"  y="30" width="120" height="54"/>
+    <rect x="165" y="30" width="135" height="54"/>
+    <rect x="335" y="30" width="145" height="54"/>
+    <rect x="515" y="30" width="110" height="54"/>
+    <rect x="655" y="30" width="95"  height="54"/>
+  </g>
+  <g text-anchor="middle" fill="#000">
+    <text x="70"  y="54">User / JSON</text><text x="70"  y="70">Input (CLI)</text>
+    <text x="232" y="54">cli.py Loop</text><text x="232" y="70">Commands &amp; Timer</text>
+    <text x="407" y="54">vsm_engine.py</text><text x="407" y="70">Normalize &amp; Score</text>
+    <text x="570" y="54">Score Dist.</text><text x="570" y="70">&amp; Top-k Rank</text>
+    <text x="702" y="54">Terminal</text><text x="702" y="70">Output</text>
+  </g>
+  <g stroke="#000" marker-end="url(#arr)">
+    <line x1="130" y1="57" x2="163" y2="57"/>
+    <line x1="300" y1="57" x2="333" y2="57"/>
+    <line x1="480" y1="57" x2="513" y2="57"/>
+    <line x1="625" y1="57" x2="653" y2="57"/>
+  </g>
+</svg>
+
+<table>
+  <tr><th style="width:24%">CLI Component</th><th>Functionality Implemented in <code>cli.py</code></th></tr>
+  <tr><td>Startup Verification</td><td>Automatically executes and asserts the Section 4.5 worked example (<code>Score(d1)=0.5000</code>, <code>Score(d2)=0.0000</code>).</td></tr>
+  <tr><td>Corpus Ingestion</td><td>Loads an 8-document default corpus or accepts any external JSON document list / Section 8 schema via <code>sys.argv[1]</code>.</td></tr>
+  <tr><td>Interactive Commands</td><td><code>:docs</code> (inspect corpus), <code>:schema</code> (preview JSON index), <code>:top &lt;k&gt;</code>, <code>:save &lt;file&gt;</code>, <code>:help</code>, <code>:quit</code>.</td></tr>
+  <tr><td>Telemetry &amp; Stats</td><td>Measures wall-clock latency in ms using <code>time.perf_counter()</code> and reports Min, Max, Mean, and non-zero match counts.</td></tr>
+</table>
+
+<h2>3. Intermediate Evaluation Dataset</h2>
+<p>Initial retrieval evaluation was conducted on an 8-document multi-topic corpus (<i>N</i> = 8 documents, vocabulary dimension <i>D</i> = 57, index built in <b>0.363 ms</b>), plus external JSON ingestion of <code>sample_index.json</code> (<i>N</i> = 2, <i>D</i> = 7, index built in <b>0.092 ms</b>):</p>
+<table>
+  <tr><th style="width:10%">doc_id</th><th style="width:12%">Tokens</th><th>Raw Document Text</th></tr>
+  <tr><td>0</td><td>6</td><td>the cat sat on the mat</td></tr>
+  <tr><td>1</td><td>6</td><td>the dog sat on the log</td></tr>
+  <tr><td>2</td><td>6</td><td>cats and dogs are domestic animals</td></tr>
+  <tr><td>3</td><td>9</td><td>linear algebra and vector space models power information retrieval</td></tr>
+  <tr><td>4</td><td>9</td><td>cosine similarity measures the angle between two document vectors</td></tr>
+  <tr><td>5</td><td>11</td><td>discrete mathematics and graph theory form the foundation of computer science</td></tr>
+  <tr><td>6</td><td>9</td><td>python standard library provides data structures without external dependencies</td></tr>
+  <tr><td>7</td><td>10</td><td>inverted index optimization reduces query scoring complexity in search engines</td></tr>
+</table>
+
+<h2>4. Observed Retrieval Accuracy, Score Distribution &amp; Latency</h2>
+<p>Four representative query classes were executed interactively in <code>python3 cli.py</code> to validate relevance ranking, tie-breaking, out-of-vocabulary handling, and zero-norm safety:</p>
+<table>
+  <tr>
+    <th>Query</th>
+    <th>Top Result(s)</th>
+    <th>Max / Mean / Min</th>
+    <th>Matches (&gt;0)</th>
+    <th>Dense (ms)</th>
+    <th>Inv-Idx (ms)</th>
+  </tr>
+  <tr>
+    <td><code>cat mat</code></td>
+    <td>#1 <code>doc_id=0</code> (0.5000)</td>
+    <td>0.5000 / 0.0625 / 0.0000</td>
+    <td>1 / 8</td>
+    <td>1.259</td>
+    <td>0.104</td>
+  </tr>
+  <tr>
+    <td><code>vector space cosine similarity</code></td>
+    <td>#1 <code>doc_id=3</code> (0.3333)<br>#2 <code>doc_id=4</code> (0.3333)</td>
+    <td>0.3333 / 0.0833 / 0.0000</td>
+    <td>2 / 8</td>
+    <td>1.435</td>
+    <td>0.064</td>
+  </tr>
+  <tr>
+    <td><code>quantum spaceship</code> (OOV)</td>
+    <td><code>doc_id</code> 0, 1, 2, 3, 4 (all 0.0000)</td>
+    <td>0.0000 / 0.0000 / 0.0000</td>
+    <td>0 / 8</td>
+    <td>1.311</td>
+    <td>0.026</td>
+  </tr>
+  <tr>
+    <td><code>""</code> (empty query)</td>
+    <td><code>doc_id</code> 0, 1, 2, 3, 4 (all 0.0000)</td>
+    <td>0.0000 / 0.0000 / 0.0000</td>
+    <td>0 / 8</td>
+    <td>1.238</td>
+    <td>0.013</td>
+  </tr>
+</table>
+
+<h3>Sample Captured Terminal Transcript</h3>
+<pre>Query&gt; vector space cosine similarity
+--------------------------------------------------------------------------
+Results (top-5) | Dense Latency: 1.435 ms | Inverted-Index Latency: 0.064 ms
+Score Distribution (N=8) -&gt; Max: 0.3333, Mean: 0.0833, Min: 0.0000, Matching Docs (Score &gt; 0): 2/8
+--------------------------------------------------------------------------
+  #1 | doc_id=3  | Score=0.3333 | linear algebra and vector space models power information retrieval
+  #2 | doc_id=4  | Score=0.3333 | cosine similarity measures the angle between two document vectors
+  #3 | doc_id=0  | Score=0.0000 | the cat sat on the mat
+  #4 | doc_id=1  | Score=0.0000 | the dog sat on the log
+  #5 | doc_id=2  | Score=0.0000 | cats and dogs are domestic animals</pre>
+
+<h2>5. Intermediate Evaluation Findings</h2>
+<ul>
+  <li><b>Relevance Accuracy:</b> <code>cat mat</code> matched the hand-calculated Section 4.5 score (<b>0.5000</b>) exactly; multi-term CS queries surfaced only the two semantically overlapping documents (<code>doc_id=3</code> and <code>doc_id=4</code>).</li>
+  <li><b>Determinism (NFR1 / I7):</b> Exact score ties (<code>doc_id=3</code> and <code>doc_id=4</code> both scoring <code>0.3333</code>, as well as zero-scoring documents) were consistently ordered by ascending <code>doc_id</code>.</li>
+  <li><b>Zero-Crash Robustness (FR8 / NFR3):</b> Empty and completely out-of-vocabulary queries returned <code>0.0000</code> cleanly with zero exceptions.</li>
+  <li><b>Latency Motivation for Milestone 4:</b> Even at <i>N</i> = 8, the dense scan averaged ~1.31 ms/query versus 0.01&ndash;0.10 ms via inverted index—motivating full sparse-index optimization and scaling benchmarks in Milestone 4.</li>
+</ul>
+
+</body>
+</html>
